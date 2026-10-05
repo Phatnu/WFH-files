@@ -22,14 +22,22 @@ import "@/assets/style/global.css";
 
 const ROWS_PER_PAGE = 10;
 
+const HOUR_OPTIONS = Array.from({ length: 24 }, (_, h) => {
+  const label = new Date(2000, 0, 1, h, 0, 0).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    hour12: true,
+  });
+  return { value: `${String(h).padStart(2, "0")}:00`, label };
+});
+
 const calcHours = (startTime, endTime) => {
   if (!startTime || !endTime) return 0;
-  const [sh, sm] = startTime.split(":").map(Number);
-  const [eh, em] = endTime.split(":").map(Number);
-  if ([sh, sm, eh, em].some((n) => Number.isNaN(n))) return 0;
-  const diffMinutes = eh * 60 + em - (sh * 60 + sm);
-  if (diffMinutes <= 0) return 0;
-  return Math.round((diffMinutes / 60) * 100) / 100;
+  const [sh] = startTime.split(":").map(Number);
+  const [eh] = endTime.split(":").map(Number);
+  if (Number.isNaN(sh) || Number.isNaN(eh)) return 0;
+  const diffHours = eh - sh;
+  if (diffHours <= 0) return 0;
+  return diffHours;
 };
 
 const OvertimePage = ({ setIsAuth }) => {
@@ -111,13 +119,11 @@ const OvertimePage = ({ setIsAuth }) => {
           total: pagination.total ?? all.length,
           pending: all.filter((r) => r.status === "Pending").length,
           approved: all.filter((r) => r.status === "Approved").length,
-          totalHours:
-            Math.round(
-              all
-                .filter((r) => r.status === "Approved")
-                .reduce((sum, r) => sum + (Number(r.total_hours) || 0), 0) *
-                100,
-            ) / 100,
+          totalHours: Math.round(
+            all
+              .filter((r) => r.status === "Approved")
+              .reduce((sum, r) => sum + (Number(r.total_hours) || 0), 0),
+          ),
         });
       }
     } catch (err) {
@@ -279,15 +285,13 @@ const OvertimePage = ({ setIsAuth }) => {
 
   const formatTime = (timeString) => {
     if (!timeString) return "-";
-    const [h, m] = String(timeString).split(":");
+    const [h] = String(timeString).split(":");
     const hours = Number(h);
-    const minutes = Number(m);
-    if (Number.isNaN(hours) || Number.isNaN(minutes)) return "-";
+    if (Number.isNaN(hours)) return "-";
     const date = new Date();
-    date.setHours(hours, minutes, 0, 0);
+    date.setHours(hours, 0, 0, 0);
     return date.toLocaleTimeString("en-US", {
       hour: "numeric",
-      minute: "2-digit",
       hour12: true,
     });
   };
@@ -475,7 +479,7 @@ const OvertimePage = ({ setIsAuth }) => {
                             </td>
                             <td>
                               <span className="leave-days-pill">
-                                {Number(request.total_hours) || 0} hrs
+                                {Math.round(Number(request.total_hours) || 0)} hrs
                               </span>
                             </td>
                             <td
@@ -617,26 +621,38 @@ const OvertimePage = ({ setIsAuth }) => {
               <Row>
                 <Col md={6}>
                   <Form.Group className="mb-3">
-                    <Form.Label className="fw-bold">Start Time *</Form.Label>
-                    <Form.Control
-                      type="time"
+                    <Form.Label className="fw-bold">Start Time (hrs) *</Form.Label>
+                    <Form.Select
                       name="start_time"
                       value={formData.start_time}
                       onChange={handleFormChange}
                       required
-                    />
+                    >
+                      <option value="">Select hour</option>
+                      {HOUR_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </Form.Select>
                   </Form.Group>
                 </Col>
                 <Col md={6}>
                   <Form.Group className="mb-3">
-                    <Form.Label className="fw-bold">End Time *</Form.Label>
-                    <Form.Control
-                      type="time"
+                    <Form.Label className="fw-bold">End Time (hrs) *</Form.Label>
+                    <Form.Select
                       name="end_time"
                       value={formData.end_time}
                       onChange={handleFormChange}
                       required
-                    />
+                    >
+                      <option value="">Select hour</option>
+                      {HOUR_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </Form.Select>
                   </Form.Group>
                 </Col>
               </Row>
@@ -648,7 +664,7 @@ const OvertimePage = ({ setIsAuth }) => {
                 >
                   <strong>Total Hours:</strong>{" "}
                   {calculatedHours > 0
-                    ? `${calculatedHours} hour${calculatedHours === 1 ? "" : "s"}`
+                    ? `${calculatedHours} hrs`
                     : "End time must be later than start time"}
                 </Alert>
               )}
